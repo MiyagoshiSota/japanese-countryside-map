@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &181017983
+--- !u!1 &566551465
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,10 +127,13 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 181017986}
-  - component: {fileID: 181017985}
-  - component: {fileID: 181017984}
-  - component: {fileID: 181017987}
+  - component: {fileID: 566551468}
+  - component: {fileID: 566551467}
+  - component: {fileID: 566551466}
+  - component: {fileID: 566551469}
+  - component: {fileID: 566551470}
+  - component: {fileID: 566551471}
+  - component: {fileID: 566551472}
   m_Layer: 0
   m_Name: Ground
   m_TagString: Untagged
@@ -138,13 +141,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
   m_IsActive: 1
---- !u!154 &181017984
+--- !u!154 &566551466
 TerrainCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 181017983}
+  m_GameObject: {fileID: 566551465}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -156,18 +159,18 @@ TerrainCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_TerrainData: {fileID: 15600000, guid: 23478182e7f49477e8aafbabef836920, type: 2}
+  m_TerrainData: {fileID: 15600000, guid: 8342aa44bbfc7664d955c0383dfe7759, type: 2}
   m_EnableTreeColliders: 1
---- !u!218 &181017985
+--- !u!218 &566551467
 Terrain:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 181017983}
+  m_GameObject: {fileID: 566551465}
   m_Enabled: 1
   serializedVersion: 6
-  m_TerrainData: {fileID: 15600000, guid: 23478182e7f49477e8aafbabef836920, type: 2}
+  m_TerrainData: {fileID: 15600000, guid: 8342aa44bbfc7664d955c0383dfe7759, type: 2}
   m_TreeDistance: 5000
   m_TreeBillboardDistance: 50
   m_TreeCrossFadeLength: 5
@@ -198,13 +201,13 @@ Terrain:
   m_EnableHeightmapRayTracing: 1
   m_EnableTreesAndDetailsRayTracing: 0
   m_TreeMotionVectorModeOverride: 3
---- !u!4 &181017986
+--- !u!4 &566551468
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 181017983}
+  m_GameObject: {fileID: 566551465}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -213,13 +216,13 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &181017987
+--- !u!114 &566551469
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 181017983}
+  m_GameObject: {fileID: 566551465}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4f6c8db506511484e935a3577819f965, type: 3}
@@ -227,11 +230,66 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 1000
   height: 1000
-  terrain: {fileID: 181017985}
+  terrain: {fileID: 566551467}
   baseHeight: 0.1
   numberOfMountains: 10
   maxMountainHeight: 0.5
   mountainRadius: 100
+  seed: 0
+--- !u!114 &566551470
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 566551465}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21eaadaef4e26554c94599cf706ba833, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  terrain: {fileID: 566551467}
+  mountainRadius: 500
+  maxHeight: 1
+  smoothness: 1
+  noiseScale: 100
+  octaves: 1
+  noiseStrength: 0.138
+  seed: 0
+--- !u!114 &566551471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 566551465}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cea13eee78123ac4494e26a0f4d24be0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  terrain: {fileID: 566551467}
+  minMountainHeight: 0.1
+  maxMountainHeight: 0.45
+  riceFieldRatio: 0.206
+  seed: 0
+--- !u!114 &566551472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 566551465}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9df3e19161abb4742bd8a7c4d0b0badc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  terrain: {fileID: 566551467}
+  flatAreaMask: {fileID: 2800000, guid: d219fd01a562c4b42b2ec27a03160074, type: 3}
+  numberOfNodes: 15
+  roadWidth: 8
+  flattenStrength: 0.5
   seed: 0
 --- !u!1 &1106430824
 GameObject:
@@ -651,5 +709,5 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1923930469}
-  - {fileID: 181017986}
+  - {fileID: 566551468}
   - {fileID: 1673494041}
