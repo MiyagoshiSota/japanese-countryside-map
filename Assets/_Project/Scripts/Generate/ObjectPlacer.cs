@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class ObjectPlacer : MonoBehaviour
+public partial class ObjectPlacer : MonoBehaviour
 {
     [Header("Object Settings")]
     public GameObject objectToPlacePrefab; // 配置するオブジェクトのプレハブ

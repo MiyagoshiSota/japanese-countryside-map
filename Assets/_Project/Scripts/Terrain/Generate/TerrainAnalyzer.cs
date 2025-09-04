@@ -2,7 +2,7 @@ using UnityEngine;
 using System.IO;
 
 [RequireComponent(typeof(Terrain))]
-public class IrregularZoneAnalyzer : MonoBehaviour
+internal class ClusteredZoneAnalyzer : MonoBehaviour
 {
     [Header("参照")]
     public Terrain terrain;
@@ -14,6 +14,9 @@ public class IrregularZoneAnalyzer : MonoBehaviour
     [Range(0f, 1f)]
     public float maxMountainHeight = 0.45f;
 
+    [Header("平地のエリア分け設定")]
+    [Tooltip("町と田んぼの塊の大きさ。小さいほど大きな塊に、大きいほど小さな塊になります。")]
+    public float clusterScale = 15f;
     [Tooltip("平地における田んぼの割合（0.0～1.0）")]
     [Range(0f, 1f)]
     public float riceFieldRatio = 0.5f;
@@ -22,18 +25,19 @@ public class IrregularZoneAnalyzer : MonoBehaviour
     [Tooltip("分析結果を変えるためのシード値。0の場合は実行ごとにランダム。")]
     public int seed = 0;
     
-    [ContextMenu("不規則なゾーンマスクを生成する")]
+    [ContextMenu("クラスター化されたゾーンマスクを生成する")]
     public void AnalyzeAndGenerateMasks()
     {
-        if (terrain == null) terrain = GetComponent<Terrain>();
+        if (terrain == null) terrain = GetComponent(typeof(Terrain)) as Terrain;
         TerrainData terrainData = terrain.terrainData;
         int resolution = terrainData.heightmapResolution;
 
-        // --- 1. 閾値をランダムに決定 ---
+        // --- 1. 閾値とノイズのオフセットをランダムに決定 ---
         if (seed != 0) Random.InitState(seed);
         else Random.InitState((int)System.DateTime.Now.Ticks);
         
         float mountainHeightThreshold = Random.Range(minMountainHeight, maxMountainHeight);
+        Vector2 noiseOffset = new Vector2(Random.Range(0f, 1000f), Random.Range(0f, 1000f));
 
         Debug.Log($"今回のランダム閾値 -> 森林の標高: {mountainHeightThreshold:F2}");
 
@@ -60,8 +64,12 @@ public class IrregularZoneAnalyzer : MonoBehaviour
                 }
                 else
                 {
-                    // 平地の場合、ランダムで町か田んぼかを決める
-                    if (Random.Range(0f, 1.0f) < riceFieldRatio)
+                    // 平地の場合、パーリンノイズを使って町か田んぼかを決める
+                    float sampleX = x / (float)resolution * clusterScale + noiseOffset.x;
+                    float sampleY = y / (float)resolution * clusterScale + noiseOffset.y;
+                    float perlinValue = Mathf.PerlinNoise(sampleX, sampleY);
+
+                    if (perlinValue < riceFieldRatio)
                     {
                         isRiceFieldArea = true; // 田んぼゾーン
                     }
@@ -86,7 +94,7 @@ public class IrregularZoneAnalyzer : MonoBehaviour
         SaveTextureAsPNG(riceFieldMask, "RiceFieldMask.png");
         SaveTextureAsPNG(forestMask, "ForestMask.png");
         
-        Debug.Log("不規則なゾーンマスクの生成が完了しました。");
+        Debug.Log("クラスター化されたゾーンマスクの生成が完了しました。");
     }
 
     private void SaveTextureAsPNG(Texture2D texture, string filename)
