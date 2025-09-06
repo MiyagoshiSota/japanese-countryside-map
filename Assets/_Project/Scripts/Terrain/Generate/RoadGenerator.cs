@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 
 [RequireComponent(typeof(Terrain))]
-public class ElevatedRoadGenerator : MonoBehaviour
+public class RoadGenerator : MonoBehaviour
 {
     [Header("参照")]
     public Terrain terrain;
