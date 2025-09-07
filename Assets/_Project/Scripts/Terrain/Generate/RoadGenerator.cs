@@ -2,72 +2,77 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 
-[RequireComponent(typeof(Terrain))]
-public class RoadGenerator : MonoBehaviour
+public class RoadAndBridgeMaskGenerator : MonoBehaviour
 {
     [Header("参照")]
-    public Terrain terrain;
-    public Texture2D flatAreaMask; // TownMaskとRiceFieldMaskを合成したもの
+    [Tooltip("道路を生成したいエリアを示すマスク画像（白が有効エリア）")]
+    public Texture2D flatAreaMask;
+    [Tooltip("川の位置を示すマスク画像（白が川）")]
+    public Texture2D riverMask;
 
-    [Header("道路設定")]
+    [Header("道路ネットワーク設定")]
     [Tooltip("道路網の主要な経由点の数")]
-    public int numberOfNodes = 10;
+    public int numberOfNodes = 20;
     [Tooltip("道路本体の幅")]
     public float roadWidth = 6f;
-    [Tooltip("道路脇の、地形を滑らかにするための追加の幅")]
+    [Tooltip("道路脇を滑らかにするための追加の幅")]
     public float smoothingWidth = 10f;
-    [Tooltip("道路が周囲の地形より高くなる絶対的な高さ (0.0 ~ 1.0)")]
-    [Range(0f, 1f)]
-    public float roadElevationHeight = 0.05f;
 
     [Header("ランダム設定")]
-    [Tooltip("経由点の配置を変えるためのシード値")]
     public int seed = 0;
 
-    [ContextMenu("高台の道路を生成し地形を調整する")]
-    public void GenerateRoads()
+    private class Edge
     {
-        if (terrain == null) terrain = GetComponent<Terrain>();
-        if (flatAreaMask == null)
+        public int u, v; public float distance;
+        public Edge(int u, int v, float distance) { this.u = u; this.v = v; this.distance = distance; }
+    }
+
+    [ContextMenu("川を考慮した道路マスク画像を生成する")]
+    public void GenerateRoadMask()
+    {
+        if (flatAreaMask == null || riverMask == null)
         {
-            Debug.LogError("平地エリアのマスク(flatAreaMask)が設定されていません！");
+            Debug.LogError("マスク画像(flatAreaMask or riverMask)が設定されていません！");
+            return;
+        }
+        if (!flatAreaMask.isReadable || !riverMask.isReadable)
+        {
+            Debug.LogError("マスク画像のRead/Write設定を有効にしてください。");
             return;
         }
 
-        TerrainData terrainData = terrain.terrainData;
-        int resolution = terrainData.heightmapResolution;
-        float[,] originalHeights = terrainData.GetHeights(0, 0, resolution, resolution);
-        float[,] modifiedHeights = (float[,])originalHeights.Clone();
-
+        int resolution = flatAreaMask.width;
+        
         if (seed != 0) Random.InitState(seed);
+        
         List<Vector2Int> nodes = new List<Vector2Int>();
         for (int i = 0; i < numberOfNodes; i++)
         {
             int x, y;
+            int attempts = 0;
             do {
                 x = Random.Range(0, resolution);
                 y = Random.Range(0, resolution);
-            } while (flatAreaMask.GetPixel(x, y).r < 0.5f);
-            nodes.Add(new Vector2Int(x, y));
+                attempts++;
+                if (attempts > 1000) {
+                    Debug.LogWarning("ノードを配置できる場所が見つかりませんでした。");
+                    break;
+                }
+            } while (flatAreaMask.GetPixel(x, y).r < 0.5f || riverMask.GetPixel(x,y).r > 0.1f);
+
+            if(attempts <= 1000) nodes.Add(new Vector2Int(x, y));
         }
 
-        // --- ★ここから修正 ---
-        Texture2D roadVisualizer = new Texture2D(resolution, resolution);
-        // 全ピクセルを一度に黒く塗りつぶす
-        Color[] blackPixels = new Color[resolution * resolution];
-        for (int i = 0; i < blackPixels.Length; i++)
+        if (nodes.Count < 2)
         {
-            blackPixels[i] = Color.black;
+            Debug.LogWarning("道路を生成するにはノードが2つ以上必要です。");
+            return;
         }
-        roadVisualizer.SetPixels(blackPixels);
-        // --- ★ここまで修正 ---
-        
-        // --- 最小全域木でノードを結ぶロジック ---
+
         List<Edge> edges = new List<Edge>();
         for (int i = 0; i < nodes.Count; i++) {
             for (int j = i + 1; j < nodes.Count; j++) {
-                float distance = Vector2.Distance(nodes[i], nodes[j]);
-                edges.Add(new Edge(i, j, distance));
+                edges.Add(new Edge(i, j, Vector2.Distance(nodes[i], nodes[j])));
             }
         }
         edges.Sort((a, b) => a.distance.CompareTo(b.distance));
@@ -81,26 +86,27 @@ public class RoadGenerator : MonoBehaviour
             if(rootI != rootJ) parent[rootI] = rootJ;
         }
 
+        // 道路と橋の形状を書き込むための一時的なマップ
+        float[,] roadMap = new float[resolution, resolution];
+
         foreach (var edge in edges)
         {
             if (find(edge.u) != find(edge.v))
             {
                 unite(edge.u, edge.v);
-                DrawElevatedRoadAndSmooth(nodes[edge.u], nodes[edge.v], terrainData, modifiedHeights, originalHeights, roadVisualizer);
+                DrawPathOnMap(nodes[edge.u], nodes[edge.v], resolution, roadMap);
             }
         }
 
-        terrainData.SetHeights(0, 0, modifiedHeights);
-        
-        roadVisualizer.Apply();
-        SaveTextureAsPNG(roadVisualizer, "RoadVisualizer.png");
-        Debug.Log("高台道路の生成と地形調整が完了しました。");
+        Debug.Log("マスク画像を生成して保存します...");
+        Texture2D roadMaskTexture = CreateMaskTexture(roadMap, resolution);
+        SaveTextureAsPNG(roadMaskTexture, "GeneratedRoadAndBridgeMask.png");
     }
 
-    void DrawElevatedRoadAndSmooth(Vector2Int start, Vector2Int end, TerrainData terrainData, float[,] modifiedHeights, float[,] originalHeights, Texture2D roadVisualizer)
+    void DrawPathOnMap(Vector2Int start, Vector2Int end, int resolution, float[,] roadMap)
     {
-        int resolution = terrainData.heightmapResolution;
         int pointsCount = (int)Vector2.Distance(start, end);
+        float totalWidth = roadWidth + smoothingWidth;
 
         for (int k = 0; k <= pointsCount; k++)
         {
@@ -108,47 +114,48 @@ public class RoadGenerator : MonoBehaviour
             int cx = (int)Mathf.Lerp(start.x, end.x, t);
             int cy = (int)Mathf.Lerp(start.y, end.y, t);
 
-            float targetHeightAtCenter = originalHeights[cy, cx] + roadElevationHeight; 
-            targetHeightAtCenter = Mathf.Clamp01(targetHeightAtCenter);
-
-            float totalWidth = roadWidth + smoothingWidth;
-
-            for (int y = -(int)totalWidth; y <= (int)totalWidth; y++)
-            {
-                for (int x = -(int)totalWidth; x <= (int)totalWidth; x++)
-                {
+            for (int y = -(int)Mathf.CeilToInt(totalWidth); y <= (int)Mathf.CeilToInt(totalWidth); y++) {
+                for (int x = -(int)Mathf.CeilToInt(totalWidth); x <= (int)Mathf.CeilToInt(totalWidth); x++) {
                     int px = cx + x;
                     int py = cy + y;
-                    float dist = Mathf.Sqrt(x * x + y * y);
-
                     if (px >= 0 && px < resolution && py >= 0 && py < resolution)
                     {
-                        if (dist <= roadWidth / 2)
-                        {
-                            modifiedHeights[py, px] = targetHeightAtCenter;
-                            // 道路部分だけ白く上書きする
-                            roadVisualizer.SetPixel(px, py, Color.white);
-                        }
-                        else if (dist <= totalWidth / 2)
-                        {
+                        float dist = Mathf.Sqrt(x * x + y * y);
+                        
+                        if (dist <= roadWidth / 2) {
+                            roadMap[py, px] = 1.0f; // 道の中心は白
+                        } else if (dist <= totalWidth / 2) {
+                            // 道の脇は滑らかに減衰
                             float blendFactor = 1.0f - (dist - (roadWidth / 2f)) / smoothingWidth;
-                            modifiedHeights[py, px] = Mathf.Lerp(originalHeights[py, px], targetHeightAtCenter, blendFactor);
+                            roadMap[py, px] = Mathf.Max(roadMap[py, px], blendFactor);
                         }
                     }
                 }
             }
         }
     }
+    
+    private Texture2D CreateMaskTexture(float[,] map, int resolution)
+    {
+        Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.RGB24, false);
+        Color[] pixels = new Color[resolution * resolution];
+        for (int y = 0; y < resolution; y++) {
+            for (int x = 0; x < resolution; x++) {
+                float value = map[y, x];
+                pixels[y * resolution + x] = new Color(value, value, value);
+            }
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+        return tex;
+    }
 
     private void SaveTextureAsPNG(Texture2D texture, string filename)
     {
         byte[] bytes = texture.EncodeToPNG();
-        // 保存先をプロジェクトのルートフォルダに変更
-        File.WriteAllBytes(Path.Combine(Application.dataPath, filename), bytes);
-    }
-    
-    private class Edge {
-        public int u, v; public float distance;
-        public Edge(int u, int v, float distance) { this.u = u; this.v = v; this.distance = distance; }
+        var dirPath = Path.Combine(Application.dataPath, "GeneratedMaps");
+        if (!Directory.Exists(dirPath)) Directory.CreateDirectory(dirPath);
+        File.WriteAllBytes(Path.Combine(dirPath, filename), bytes);
+        Debug.Log($"<color=green>{filename} を {dirPath} に保存しました。</color>");
     }
 }

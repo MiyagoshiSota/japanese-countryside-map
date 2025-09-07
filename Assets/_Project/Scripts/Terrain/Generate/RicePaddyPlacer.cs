@@ -9,48 +9,40 @@ public class RicePaddyPlacer : MonoBehaviour
 {
     [Header("参照")]
     public Terrain terrain;
-    [Tooltip("階層を整理するための親オブジェクト")]
     public Transform paddiesParent;
-    [Tooltip("家の親オブジェクト（この周りを避ける）")]
     public Transform housesParent;
 
     [Header("マスク")]
-    [Tooltip("田んぼを配置するエリアを示すマスク")]
     public Texture2D riceFieldMask;
-    [Tooltip("道路のマスク（この周りを避ける）")]
     public Texture2D roadMask;
-    
+    public Texture2D riverMask; 
+
     [Header("配置設定")]
-    [Tooltip("配置する田んぼのプレハブ")]
     public GameObject[] paddyPrefabs;
-    [Tooltip("田んぼをチェックする間隔")]
     public float paddyPlotSize = 10f;
-    [Tooltip("配置する田んぼの実際のサイズ（X, Y, Z）")]
     public Vector3 paddyDimensions = new Vector3(10, 1, 20);
-    [Tooltip("配置された田んぼが属するレイヤー")]
     public LayerMask paddyLayer;
-    [Tooltip("家から最低限離す距離")]
     public float exclusionRadiusHouses = 15f;
-    [Tooltip("道路から最低限離す距離")]
     public float exclusionRadiusRoads = 5f;
-    [Tooltip("配置を許可する地面の最大傾斜角度")]
+    // ▼▼▼ 追加 ▼▼▼
+    [Tooltip("川から最低限離す距離")]
+    public float exclusionRadiusRiver = 8f;
+    // ▲▲▲ ▲▲▲
     public float maxSlopeAngle = 30f;
-    [Tooltip("回転の揃い具合。値が小さいほど広い範囲で向きが揃います。")]
     public float rotationCoherence = 0.1f;
-    [Tooltip("田んぼを地面に埋め込む（沈める）深さ")]
     public float sinkAmount = 0.5f;
-    [Tooltip("地形自体を平坦に凹ませる機能を有効にするか")]
+    
+    [Header("川周辺への配置設定")]
+    public float nearRiverDistance = 50f; 
+    public float farRiverDistance = 200f;
+
+    [Header("地形変形設定")]
     public bool modifyTerrainHeight = true;
-    [Tooltip("地形を凹ませる深さ（ワールド単位）。テスト用に5などの大きな値も試してみてください。")]
     public float terrainLowerAmount = 1.0f;
 
     private List<Vector3> housePositions;
     private List<Vector2> roadPointsNormalized;
-
-    private void Start()
-    {
-        GeneratePaddies();
-    }
+    private List<Vector2> riverPointsNormalized;
 
     [ContextMenu("田んぼを生成する")]
     public void GeneratePaddies()
@@ -72,6 +64,8 @@ public class RicePaddyPlacer : MonoBehaviour
                 if (Physics.Raycast(plotCenter + Vector3.up * 100, Vector3.down, out hit, 200f, ~paddyLayer))
                 {
                     if (Vector3.Angle(Vector3.up, hit.normal) > maxSlopeAngle) continue;
+                    
+                    if(!ShouldPlaceByRiverDistance(plotCenter)) continue;
 
                     GameObject prefab = paddyPrefabs[Random.Range(0, paddyPrefabs.Length)];
                     Quaternion finalRotation = CalculateFinalRotation(x, y, hit, prefab);
@@ -98,14 +92,10 @@ public class RicePaddyPlacer : MonoBehaviour
         int heightmapResolution = terrainData.heightmapResolution;
         Vector3 terrainSize = terrainData.size;
         Vector3 terrainPos = terrain.transform.position;
-
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // 【修正点】田んぼの対角線の長さを基に、より正確な検索範囲を計算する
+        
         float diagonal = Mathf.Sqrt(Mathf.Pow(paddyDimensions.x, 2) + Mathf.Pow(paddyDimensions.z, 2));
-        float worldRadius = diagonal * 0.5f; // ワールド座標での半径
-        // ワールド座標の半径をハイトマップのピクセル数に変換
+        float worldRadius = diagonal * 0.5f;
         int searchRadius = Mathf.CeilToInt(worldRadius / terrainSize.x * (heightmapResolution - 1));
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         int centerX = (int)((hit.point.x - terrainPos.x) / terrainSize.x * (heightmapResolution - 1));
         int centerY = (int)((hit.point.z - terrainPos.z) / terrainSize.z * (heightmapResolution - 1));
@@ -116,26 +106,20 @@ public class RicePaddyPlacer : MonoBehaviour
         int height = Mathf.Min(searchRadius * 2, heightmapResolution - startY);
 
         float[,] heights = terrainData.GetHeights(startX, startY, width, height);
-        // 凹ませて平らにする目標の高さを計算（0~1の正規化された値）
         float targetHeight = (hit.point.y - terrainLowerAmount) / terrainSize.y;
         Quaternion inverseRotation = Quaternion.Inverse(finalRotation);
 
-        for (int j = 0; j < height; j++)
-        {
-            for (int i = 0; i < width; i++)
-            {
+        for (int j = 0; j < height; j++) {
+            for (int i = 0; i < width; i++) {
                 int hmX = startX + i;
                 int hmY = startY + j;
-
-                // ハイトマップ座標をワールド座標に変換
+                
                 float worldX = (hmX / (float)(heightmapResolution - 1)) * terrainSize.x + terrainPos.x;
                 float worldZ = (hmY / (float)(heightmapResolution - 1)) * terrainSize.z + terrainPos.z;
                 Vector3 worldPos = new Vector3(worldX, hit.point.y, worldZ);
-
-                // ワールド座標を田んぼのローカル座標に変換
+                
                 Vector3 localPos = inverseRotation * (worldPos - hit.point);
-
-                // 田んぼの範囲内かチェック
+                
                 if (Mathf.Abs(localPos.x) < paddyDimensions.x / 2f && Mathf.Abs(localPos.z) < paddyDimensions.z / 2f)
                 {
                     heights[j, i] = targetHeight;
@@ -144,12 +128,28 @@ public class RicePaddyPlacer : MonoBehaviour
         }
         terrainData.SetHeights(startX, startY, heights);
     }
+    
+    private bool ShouldPlaceByRiverDistance(Vector3 plotCenter)
+    {
+        if (riverPointsNormalized == null || riverPointsNormalized.Count == 0) return true;
+
+        TerrainData terrainData = terrain.terrainData;
+        Vector2 normalizedPos = new Vector2(plotCenter.x / terrainData.size.x, plotCenter.z / terrainData.size.z);
+        
+        float minSqrDist = riverPointsNormalized.Min(riverPoint => (normalizedPos - riverPoint).sqrMagnitude);
+        float dist = Mathf.Sqrt(minSqrDist) * terrainData.size.x;
+
+        if (dist <= nearRiverDistance) return true;
+        if (dist > farRiverDistance) return false;
+
+        float placementChance = 1.0f - (dist - nearRiverDistance) / (farRiverDistance - nearRiverDistance);
+        return Random.value < placementChance;
+    }
 
     private Quaternion CalculateFinalRotation(float x, float y, RaycastHit hit, GameObject prefab)
     {
         float noise = Mathf.PerlinNoise(x * rotationCoherence, y * rotationCoherence);
-        int angleStep = Mathf.FloorToInt(noise * 4);
-        float targetAngle = angleStep * 90f;
+        float targetAngle = Mathf.FloorToInt(noise * 4) * 90f;
         Quaternion randomRotation = Quaternion.Euler(0, targetAngle, 0);
         Quaternion slopeRotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
         return slopeRotation * randomRotation * prefab.transform.rotation;
@@ -166,16 +166,22 @@ public class RicePaddyPlacer : MonoBehaviour
     {
         TerrainData terrainData = terrain.terrainData;
         Vector2 normalizedPos = new Vector2(plotCenter.x / terrainData.size.x, plotCenter.z / terrainData.size.z);
+        
         if (riceFieldMask.GetPixelBilinear(normalizedPos.x, normalizedPos.y).r < 0.5f) return false;
         if (IsTooClose(plotCenter, housePositions, exclusionRadiusHouses)) return false;
         if (IsTooClose(normalizedPos, roadPointsNormalized, exclusionRadiusRoads / terrainData.size.x)) return false;
+        
+        // ▼▼▼ 追加 ▼▼▼
+        if (IsTooClose(normalizedPos, riverPointsNormalized, exclusionRadiusRiver / terrainData.size.x)) return false;
+        // ▲▲▲ ▲▲▲
+
         return true;
     }
 
     private bool Initialize()
     {
         if (terrain == null) terrain = GetComponent<Terrain>();
-        if (riceFieldMask == null || roadMask == null) { Debug.LogError("マスクが設定されていません！"); return false; }
+        if (riceFieldMask == null || roadMask == null || riverMask == null) { Debug.LogError("マスクが設定されていません！"); return false; }
         if (paddyPrefabs.Length == 0) { Debug.LogWarning("田んぼのプレハブが設定されていません。"); return false; }
 
         housePositions = new List<Vector3>();
@@ -184,33 +190,54 @@ public class RicePaddyPlacer : MonoBehaviour
             foreach (Transform child in housesParent) housePositions.Add(child.position);
         }
 
-        roadPointsNormalized = new List<Vector2>();
-        for (int y = 0; y < roadMask.height; y++)
-        {
-            for (int x = 0; x < roadMask.width; x++)
-            {
-                if (roadMask.GetPixel(x, y).r > 0.5f)
-                {
-                    roadPointsNormalized.Add(new Vector2(x / (float)roadMask.width, y / (float)roadMask.height));
-                }
-            }
-        }
+        // --- 川、道路の情報をキャッシュ ---
+        roadPointsNormalized = GetPointsFromMask(roadMask);
+        riverPointsNormalized = GetPointsFromMask(riverMask);
+        
         return true;
     }
 
+    // ▼▼▼ マスクから座標リストを生成するヘルパー関数を追加 ▼▼▼
+    private List<Vector2> GetPointsFromMask(Texture2D mask)
+    {
+        List<Vector2> points = new List<Vector2>();
+        for (int y = 0; y < mask.height; y++)
+        {
+            for (int x = 0; x < mask.width; x++)
+            {
+                if (mask.GetPixel(x, y).r > 0.5f)
+                {
+                    points.Add(new Vector2(x / (float)mask.width, y / (float)mask.height));
+                }
+            }
+        }
+        return points;
+    }
+    // ▲▲▲ ▲▲▲
+
     private bool IsTooClose<T>(T point, List<T> targets, float radius) where T : struct
     {
-        if(targets == null) return false;
-        Func<T, T, float> distanceFunc;
-        if (typeof(T) == typeof(Vector3)) distanceFunc = (a, b) => Vector3.Distance((Vector3)(object)a, (Vector3)(object)b);
-        else if (typeof(T) == typeof(Vector2)) distanceFunc = (a, b) => Vector2.Distance((Vector2)(object)a, (Vector2)(object)b);
-        else return false;
-
-        foreach (var target in targets)
+        if(targets == null || targets.Count == 0) return false;
+        
+        // LinqのMin()を使うと重いので、手動で最小距離を探す
+        float minSqrDist = float.MaxValue;
+        if (typeof(T) == typeof(Vector3))
         {
-            if (distanceFunc(point, target) < radius) return true;
+            Vector3 p = (Vector3)(object)point;
+            foreach (var t in targets) {
+                float sqrDist = Vector3.SqrMagnitude(p - (Vector3)(object)t);
+                if (sqrDist < minSqrDist) minSqrDist = sqrDist;
+            }
         }
-        return false;
+        else if (typeof(T) == typeof(Vector2))
+        {
+            Vector2 p = (Vector2)(object)point;
+            foreach (var t in targets) {
+                float sqrDist = Vector2.SqrMagnitude(p - (Vector2)(object)t);
+                if (sqrDist < minSqrDist) minSqrDist = sqrDist;
+            }
+        }
+        return minSqrDist < radius * radius;
     }
 
     [ContextMenu("配置した田んぼを削除")]

@@ -36,7 +36,7 @@ internal class ClusteredZoneAnalyzer : MonoBehaviour
         if (seed != 0) Random.InitState(seed);
         else Random.InitState((int)System.DateTime.Now.Ticks);
         
-        float mountainHeightThreshold = Random.Range(minMountainHeight, maxMountainHeight);
+        float mountainHeightThreshold = minMountainHeight;
         Vector2 noiseOffset = new Vector2(Random.Range(0f, 1000f), Random.Range(0f, 1000f));
 
         Debug.Log($"今回のランダム閾値 -> 森林の標高: {mountainHeightThreshold:F2}");

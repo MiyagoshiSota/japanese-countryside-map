@@ -64,6 +64,18 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _RiverMask:
+        m_Texture: {fileID: 2800000, guid: fe31603e420609146b0f7c04641ebacf, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RiverTexture:
+        m_Texture: {fileID: 2800000, guid: 1f6d10de5f61f904caf081c16fbd29d4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RoadMask:
+        m_Texture: {fileID: 2800000, guid: 2e0e82117327e49439f94b6fb8f868a6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _RoadSplatMap:
         m_Texture: {fileID: 2800000, guid: 156eb3b139fcd5440b8a8bd7f576cc01, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -77,11 +89,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Texture1:
-        m_Texture: {fileID: 2800000, guid: 72c566659474745bf836a766e30c4505, type: 3}
+        m_Texture: {fileID: 2800000, guid: 078c98d71a188b7419aacab1ebb4cc09, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Texture2:
-        m_Texture: {fileID: 2800000, guid: 72c566659474745bf836a766e30c4505, type: 3}
+        m_Texture: {fileID: 2800000, guid: 5ccb4e8eeb234460e98521fb3d19d05a, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Texture3:
@@ -133,6 +145,8 @@ Material:
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
+    - _RiverDepth: 4
+    - _RoadElevation: 0.5
     - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
