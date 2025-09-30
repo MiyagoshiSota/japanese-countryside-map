@@ -65,7 +65,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RiverMask:
-        m_Texture: {fileID: 2800000, guid: fe31603e420609146b0f7c04641ebacf, type: 3}
+        m_Texture: {fileID: 2800000, guid: 0edde5cfa510b48b7b957d8248cd0c94, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RiverTexture:
@@ -73,7 +73,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RoadMask:
-        m_Texture: {fileID: 2800000, guid: 2e0e82117327e49439f94b6fb8f868a6, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RoadSplatMap:
