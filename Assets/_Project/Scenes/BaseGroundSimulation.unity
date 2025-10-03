@@ -272,6 +272,8 @@ GameObject:
   - component: {fileID: 1119003691}
   - component: {fileID: 1119003692}
   - component: {fileID: 1119003694}
+  - component: {fileID: 1119003695}
+  - component: {fileID: 1119003696}
   m_Layer: 0
   m_Name: Ground
   m_TagString: Untagged
@@ -308,7 +310,7 @@ Terrain:
   m_GameObject: {fileID: 1119003685}
   m_Enabled: 1
   serializedVersion: 6
-  m_TerrainData: {fileID: 15600000, guid: 8342aa44bbfc7664d955c0383dfe7759, type: 2}
+  m_TerrainData: {fileID: 15600000, guid: 23478182e7f49477e8aafbabef836920, type: 2}
   m_TreeDistance: 5000
   m_TreeBillboardDistance: 50
   m_TreeCrossFadeLength: 5
@@ -454,6 +456,57 @@ MonoBehaviour:
   sourceFileName: RoadMap.png
   outputFileName: RoadMap_Processed.png
   processType: 3
+--- !u!114 &1119003695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119003685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bccd3fdb1484b8f489df203c08fe408f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  slopeMapFileName: CostMap.png
+  roadMapFileName: RoadMap_Processed.png
+  riverMaskFileName: FinalRiverMask.png
+  settlementSuitabilityMapName: SettlementSuitabilityMap.png
+  roadsideSuitabilityMapName: RoadsideSuitabilityMap.png
+  maxSlope: 0.1
+  roadProximity: 20
+  riverProximity: 30
+  roadBonus: 1.5
+  riverBonus: 1
+--- !u!114 &1119003696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119003685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7452182b7b3b84ba76c4a99f633176, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  settlementSuitabilityMapName: SettlementSuitabilityMap.png
+  roadsideSuitabilityMapName: RoadsideSuitabilityMap.png
+  targetTerrain: {fileID: 1119003687}
+  objectPrefab: {fileID: 6657772903144435851, guid: d34057e2260e30c429ee887b062da6f9, type: 3}
+  numMainVillages: 1
+  objectsPerMainVillage: 10
+  mainVillageRadius: 80
+  mainVillageMinDistance: 10
+  mainVillageScoreThreshold: 0.8
+  numRoadsideHamlets: 4
+  objectsPerRoadsideHamlet: 8
+  roadsideHamletRadius: 60
+  roadsideMinDistance: 100
+  roadsideScoreThreshold: 0.5
+  numScatteredHouses: 5
+  scatteredMinDistance: 200
+  scatteredScoreThreshold: 0.1
 --- !u!1 &1979929463
 GameObject:
   m_ObjectHideFlags: 0
