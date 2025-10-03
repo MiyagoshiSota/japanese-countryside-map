@@ -130,6 +130,7 @@ GameObject:
   - component: {fileID: 508258452}
   - component: {fileID: 508258451}
   - component: {fileID: 508258450}
+  - component: {fileID: 508258453}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -211,6 +212,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &508258453
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 508258449}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_Version: 2
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
 --- !u!1 &1119003685
 GameObject:
   m_ObjectHideFlags: 0
@@ -224,6 +269,9 @@ GameObject:
   - component: {fileID: 1119003686}
   - component: {fileID: 1119003689}
   - component: {fileID: 1119003690}
+  - component: {fileID: 1119003691}
+  - component: {fileID: 1119003692}
+  - component: {fileID: 1119003694}
   m_Layer: 0
   m_Name: Ground
   m_TagString: Untagged
@@ -322,9 +370,9 @@ MonoBehaviour:
   mountainRadius: 1000
   maxHeight: 0.7
   smoothness: 2
-  noiseScale: 10
+  noiseScale: 5
   octaves: 7
-  noiseStrength: 0.5
+  noiseStrength: 0.2
   seed: 0
 --- !u!114 &1119003690
 MonoBehaviour:
@@ -338,17 +386,74 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8e9898d7608b4d1aa4ba4fe325e64f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numParticles: 60000
+  numParticles: 6000
   maxLifetime: 128
   inertia: 0.01
-  sedimentCapacityFactor: 3
+  sedimentCapacityFactor: 0.1
   minSedimentCapacity: 0.05
-  erodeSpeed: 0.15
+  erodeSpeed: 0.01
   depositSpeed: 0.15
-  evaporateSpeed: 0.01
+  evaporateSpeed: 0.001
   gravity: 3
-  erosionRadius: 4
+  erosionRadius: 8
+  erodedHeightmapName: ErodedHeightmap.png
   flowMapExportFileName: ErosionFlowMap.png
+--- !u!114 &1119003691
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119003685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 839a11de058e44c22ad1196c967b3964, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sourceFlowMapName: ErosionFlowMap.png
+  finalRiverMaskName: FinalRiverMask.png
+  riverThreshold: 0.2
+  riverContrastExponent: 1
+--- !u!114 &1119003692
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119003685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 100d356c934934d04b107ee615e75a69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  heightmapFileName: ErodedHeightmap.png
+  riverMaskFileName: FinalRiverMask.png
+  costMapFileName: CostMap.png
+  roadMapFileName: RoadMap.png
+  slopeExponent: 4
+  riverPenalty: 1000
+  maxStartEndCost: 50
+  startEndCheckRadius: 10
+  minMainRoadDistance: 200
+  numMainRoads: 1
+  numBranchRoads: 5
+  branchLength: 50
+  downsampleScale: 2
+--- !u!114 &1119003694
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119003685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a54fc5f727a56495bacae28e6a3824d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sourceFileName: RoadMap.png
+  outputFileName: RoadMap_Processed.png
+  processType: 3
 --- !u!1 &1979929463
 GameObject:
   m_ObjectHideFlags: 0
