@@ -119,6 +119,68 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1001 &411540893
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 398.59
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -2447
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 399
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071067
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2330079500480099416, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3106861802734579426, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+      propertyPath: m_Name
+      value: one
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+--- !u!1 &411540894 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3106861802734579426, guid: 4ae2619adc8e843cd999f319c7febf82, type: 3}
+  m_PrefabInstance: {fileID: 411540893}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &508258449
 GameObject:
   m_ObjectHideFlags: 0
@@ -274,6 +336,7 @@ GameObject:
   - component: {fileID: 1119003694}
   - component: {fileID: 1119003695}
   - component: {fileID: 1119003696}
+  - component: {fileID: 1119003697}
   m_Layer: 0
   m_Name: Ground
   m_TagString: Untagged
@@ -310,7 +373,7 @@ Terrain:
   m_GameObject: {fileID: 1119003685}
   m_Enabled: 1
   serializedVersion: 6
-  m_TerrainData: {fileID: 15600000, guid: 23478182e7f49477e8aafbabef836920, type: 2}
+  m_TerrainData: {fileID: 15600000, guid: 8342aa44bbfc7664d955c0383dfe7759, type: 2}
   m_TreeDistance: 5000
   m_TreeBillboardDistance: 50
   m_TreeCrossFadeLength: 5
@@ -495,18 +558,39 @@ MonoBehaviour:
   targetTerrain: {fileID: 1119003687}
   objectPrefab: {fileID: 6657772903144435851, guid: d34057e2260e30c429ee887b062da6f9, type: 3}
   numMainVillages: 1
-  objectsPerMainVillage: 10
+  objectsPerMainVillage: 40
   mainVillageRadius: 80
   mainVillageMinDistance: 10
   mainVillageScoreThreshold: 0.8
   numRoadsideHamlets: 4
   objectsPerRoadsideHamlet: 8
   roadsideHamletRadius: 60
-  roadsideMinDistance: 100
+  roadsideMinDistance: 15
   roadsideScoreThreshold: 0.5
-  numScatteredHouses: 5
-  scatteredMinDistance: 200
-  scatteredScoreThreshold: 0.1
+  numScatteredHouses: 20
+  scatteredMinDistance: 100
+  scatteredScoreThreshold: 0.3
+--- !u!114 &1119003697
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119003685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b87d04a1ac184c1fa190a6fd50ad6f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  paddySuitabilityMapName: PaddySuitabilityMap.png
+  targetTerrain: {fileID: 1119003687}
+  paddyPrefab: {fileID: 411540894}
+  numberOfPaddyFields: 100
+  scoreThreshold: 0.7
+  minDistanceBetweenPaddies: 30
+  scaleXRandomness: 0
+  scaleZRandomness: 0
+  yOffset: 0
 --- !u!1 &1979929463
 GameObject:
   m_ObjectHideFlags: 0
@@ -635,3 +719,4 @@ SceneRoots:
   - {fileID: 508258452}
   - {fileID: 1979929465}
   - {fileID: 1119003688}
+  - {fileID: 411540893}
