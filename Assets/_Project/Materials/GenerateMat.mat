@@ -72,8 +72,12 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _PaddyBorderTexture:
+        m_Texture: {fileID: 2800000, guid: 72c566659474745bf836a766e30c4505, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _PaddyMask:
-        m_Texture: {fileID: 2800000, guid: 8e80ae251a3cf4d6d80085714f58c6d9, type: 3}
+        m_Texture: {fileID: 2800000, guid: 5cb2be327fcd3144baf4ed8d9c34c9da, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _PaddyTex:
@@ -81,7 +85,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _PaddyTexture:
-        m_Texture: {fileID: 2800000, guid: a33b2456efd23a44fb496055cb8baca9, type: 3}
+        m_Texture: {fileID: 2800000, guid: 5ccb4e8eeb234460e98521fb3d19d05a, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:

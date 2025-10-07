@@ -1,94 +1,123 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace _Project.Scripts.Tanada
 {
-    [RequireComponent(typeof(ParticleSystem))]
-    public class ParticleMaskPlacer : MonoBehaviour
+    public class DrawInstancedRice : MonoBehaviour
     {
+        [Header("必須設定")]
+        [Tooltip("配置先のテレイン")]
+        public UnityEngine.Terrain terrain;
+        [Tooltip("配置の基準となるマスクテクスチャ")]
+        public Texture2D mask;
+        [Tooltip("インスタンス描画する稲のメッシュ")]
+        public Mesh riceMesh;
+
+        // ★★★ 変更点1：単一のマテリアルからマテリアルの配列に変更 ★★★
+        [Tooltip("稲のメッシュに適用するマテリアルのリスト。メッシュのサブメッシュの順番と一致させること")]
+        public Material[] riceMaterials;
+
         [Header("配置設定")]
-        public UnityEngine.Terrain targetTerrain;
-        public Texture2D placementMask;
+        [Tooltip("配置を試みるインスタンスの最大数")]
+        public int instanceCount = 100000;
+        [Tooltip("マスク画像の白として判定する色の閾値")]
+        [Range(0f, 1f)]
+        public float maskThreshold = 0.5f;
 
-        [Header("パーティクル設定")]
-        public int maxParticles = 10000;
-        public float yOffset = 0.1f;
+        [Header("見た目の調整")]
+        [Tooltip("Y軸の回転をランダムにするか")]
+        public bool randomizeRotation = true;
+        [Tooltip("スケールのランダム範囲 (X=Min, Y=Max)")]
+        public Vector2 scaleRange = new Vector2(0.8f, 1.2f);
+    
+        private List<Matrix4x4> matrices;
+        private const int BATCH_SIZE = 1023;
 
-        [ContextMenu("マスクに従って稲パーティクルを配置 (Emit方式)")]
-        public void PlaceParticles()
+        [ContextMenu("1. 配置データを生成する")]
+        private void GeneratePlacementData()
         {
-            ParticleSystem riceParticleSystem = GetComponent<ParticleSystem>();
-            if (riceParticleSystem == null || targetTerrain == null || placementMask == null)
+            if (!IsValid(true)) return;
+
+            Debug.Log("配置データの生成を開始します...");
+            matrices = new List<Matrix4x4>(instanceCount);
+            var terrainData = terrain.terrainData;
+            var terrainPos = terrain.transform.position;
+
+            int placedCount = 0;
+            for (int i = 0; i < instanceCount; i++)
             {
-                Debug.LogError("コンポーネント、テレイン、マスクのいずれかが設定されていません。");
-                return;
-            }
-
-            // Textureの読み書き設定をチェック
-            try
-            {
-                placementMask.GetPixel(0, 0);
-            }
-            catch (UnityException)
-            {
-                Debug.LogError($"マスクテクスチャ '{placementMask.name}' の 'Read/Write Enabled' を有効にしてください。");
-                return;
-            }
-
-            // 既存のパーティクルをクリア
-            riceParticleSystem.Clear();
-
-            // ★★★ 違いはここから ★★★
-            // 1. パーティクルをシステムの現在の設定で生成させる
-            riceParticleSystem.Emit(maxParticles);
-
-            // 2. 生成されたパーティクルを配列に取得
-            var particles = new ParticleSystem.Particle[maxParticles];
-            int particleCount = riceParticleSystem.GetParticles(particles);
-
-            int placedParticleCount = 0;
-            TerrainData terrainData = targetTerrain.terrainData;
-            Vector3 terrainPosition = targetTerrain.transform.position;
-            Vector3 terrainSize = terrainData.size;
-        
-            // 3. 取得したパーティクルの位置を書き換えていく
-            for (int i = 0; i < particleCount; i++)
-            {
-                float randomX = Random.Range(0f, 1f);
-                float randomZ = Random.Range(0f, 1f);
-
-                Color maskColor = placementMask.GetPixelBilinear(randomX, randomZ);
-
-                if (maskColor.grayscale > 0.5f)
+                float u = Random.value;
+                float v = Random.value;
+                if (mask.GetPixelBilinear(u, v).grayscale > maskThreshold)
                 {
-                    float worldX = terrainPosition.x + randomX * terrainSize.x;
-                    float worldZ = terrainPosition.z + randomZ * terrainSize.z;
-                    float worldY = targetTerrain.SampleHeight(new Vector3(worldX, 0, worldZ)) + terrainPosition.y;
-
-                    // 位置情報だけを上書き
-                    particles[placedParticleCount].position = new Vector3(worldX, worldY + yOffset, worldZ);
-                    // 寿命を無限にして、消えないようにする
-                    particles[placedParticleCount].remainingLifetime = float.MaxValue;
-                    // 動きを止める
-                    particles[placedParticleCount].velocity = Vector3.zero;
-
-                    placedParticleCount++;
+                    float x = u * terrainData.size.x;
+                    float z = v * terrainData.size.z;
+                    float y = terrain.SampleHeight(new Vector3(x, 0, z)); 
+                    Vector3 pos = new Vector3(x, y, z) + terrainPos;
+                
+                    Quaternion rot = randomizeRotation ? 
+                        Quaternion.Euler(0, Random.Range(0, 360f), 0) : 
+                        Quaternion.identity;
+                
+                    float scale = Random.Range(scaleRange.x, scaleRange.y);
+                
+                    matrices.Add(Matrix4x4.TRS(pos, rot, Vector3.one * scale));
+                    placedCount++;
                 }
             }
-        
-            // 4. マスクの黒い部分に配置されてしまった余分なパーティクルを消す
-            //    (placedParticleCountより後ろのパーティクルの寿命を0にする)
-            for (int i = placedParticleCount; i < particleCount; i++)
+            Debug.Log($"{placedCount}個の配置データを生成しました。");
+        }
+
+        [ContextMenu("2. 配置データをクリアする")]
+        private void ClearPlacementData()
+        {
+            if (matrices != null)
             {
-                particles[i].remainingLifetime = 0;
+                matrices.Clear();
+                Debug.Log("配置データをクリアしました。");
+            }
+        }
+    
+        private void Update()
+        {
+            if (matrices == null || matrices.Count == 0 || !IsValid(false))
+            {
+                return;
             }
 
-            // 5. 変更をシステムに適用
-            riceParticleSystem.SetParticles(particles, particleCount);
-        
-            // 念のためシミュレーションを停止
-            riceParticleSystem.Pause();
+            // ★★★ 変更点2：マテリアルごとに描画処理をループする ★★★
+            // メッシュが持つサブメッシュの数だけ描画命令を出す
+            for (int submeshIndex = 0; submeshIndex < riceMesh.subMeshCount; submeshIndex++)
+            {
+                // このサブメッシュに対応するマテリアルが設定されていなければスキップ
+                if (submeshIndex >= riceMaterials.Length) continue;
 
-            Debug.Log(placedParticleCount + "個のパーティクルを配置しました。");
+                // 全てのインスタンスをバッチに分けて、現在のサブメッシュを描画
+                for (int i = 0; i < matrices.Count; i += BATCH_SIZE)
+                {
+                    int count = Mathf.Min(BATCH_SIZE, matrices.Count - i);
+                    Graphics.DrawMeshInstanced(
+                        riceMesh, 
+                        submeshIndex, // 0番目のサブメッシュ、1番目のサブメッシュ...
+                        riceMaterials[submeshIndex], // 0番目のマテリアル、1番目のマテリアル...
+                        matrices.GetRange(i, count)
+                    );
+                }
+            }
+        }
+    
+        private bool IsValid(bool logErrors)
+        {
+            if (terrain == null || mask == null || riceMesh == null || riceMaterials == null || riceMaterials.Length == 0)
+            {
+                if(logErrors) Debug.LogError("必須設定が不足しています。");
+                return false;
+            }
+            if (logErrors && riceMaterials.Length != riceMesh.subMeshCount)
+            {
+                Debug.LogWarning($"メッシュは {riceMesh.subMeshCount} 個のサブメッシュを持っていますが、マテリアルは {riceMaterials.Length} 個しか設定されていません。数が一致しないと正しく表示されません。");
+            }
+            return true;
         }
     }
 }

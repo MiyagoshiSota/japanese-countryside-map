@@ -1,13 +1,13 @@
-using System.IO;
+    using System.IO;
+using UnityEditor;
 using UnityEngine;
 
 namespace _Project.Scripts.Tanada
 {
     /// <summary>
-    /// 【可視化版】条件に合う場所に生成される棚田の「平地」と「境」を
-    /// 色分けしたマスク画像を生成します。地形は変更しません。
+    /// 条件に合う場所の地形を実際に変形させて棚田を生成します。
     /// </summary>
-    public class TerraceVisualizer : MonoBehaviour
+    public class TerraceDeformer : MonoBehaviour
     {
         [Header("必須設定")]
         [SerializeField] private UnityEngine.Terrain targetTerrain;
@@ -38,17 +38,23 @@ namespace _Project.Scripts.Tanada
         [SerializeField, Range(0f, 1f)] private float placementThreshold = 0.3f;
         [Tooltip("生成する段の総数。大きいほど細かい段になる")]
         [SerializeField] private int terraceLevels = 150;
-
-        [Header("可視化設定")]
-        [Tooltip("この傾斜より急な場所を「境」としてグレーで描画します")]
+        
+        // ★★★ ここから追加 ★★★
+        [Header("マスク出力設定")]
+        [Tooltip("この傾斜より急な場所を「境」として描画します")]
         [SerializeField] private float borderSlopeThreshold = 0.005f;
-        [SerializeField] private string outputMaskFileName = "TerraceVisualization.png";
+        [Tooltip("出力するマスク画像のファイル名")]
+        [SerializeField] private string outputMaskFileName = "PaddyFieldMask.png";
+        [Tooltip("マスク画像の解像度")]
         [SerializeField] private int maskResolution = 1024;
+        // ★★★ ここまで追加 ★★★
 
+        // --- 内部データ ---
         private float[,] roadDistanceField;
+        private float[,] originalHeightsBackup; // 地形を復元するためのバックアップ
 
-        [ContextMenu("Generate Terrace Visualization Mask")]
-        public void Generate()
+        [ContextMenu("1. 地形を棚田に変形し、マスクを生成")]
+        public void DeformAndGenerateMask()
         {
             if (targetTerrain == null || combinedMap == null)
             {
@@ -56,14 +62,90 @@ namespace _Project.Scripts.Tanada
                 return;
             }
 
-            CalculateRoadDistanceField();
+            TerrainData td = targetTerrain.terrainData;
+            int heightmapRes = td.heightmapResolution;
 
-            // ステップ1: 加工後のハイトマップをメモリ上で計算する
+            // 元の地形をバックアップ（初回のみ）
+            if (originalHeightsBackup == null)
+            {
+                Debug.Log("初回実行のため、元の地形をバックアップします。");
+                originalHeightsBackup = td.GetHeights(0, 0, heightmapRes, heightmapRes);
+            }
+
+            CalculateRoadDistanceField();
+            
             float[,] processedHeights = CalculateProcessedHeightmap();
 
-            // ステップ2: 計算したハイトマップを分析して可視化マスクを生成する
-            GenerateVisualizationMask(processedHeights);
+            // 地形に適用
+            td.SetHeights(0, 0, processedHeights);
+            Debug.Log("地形の変形が完了しました。");
+            
+            // ★★★ マスク生成処理を呼び出す ★★★
+            GeneratePaddyMask(processedHeights);
         }
+        
+        [ContextMenu("2. バックアップから元の地形に復元")]
+        public void RestoreOriginalHeights()
+        {
+            // (このメソッドは変更なし)
+            if (originalHeightsBackup == null) { Debug.LogWarning("復元できる地形のバックアップがありません。"); return; }
+            if (targetTerrain != null) { targetTerrain.terrainData.SetHeights(0, 0, originalHeightsBackup); Debug.Log("バックアップから元の地形に復元しました。"); }
+        }
+
+        // ★★★ ここから追加 ★★★
+        /// <summary>
+        /// 加工後のハイトマップを分析し、「平地」と「境」を色分けしたマスクを生成する
+        /// </summary>
+        private void GeneratePaddyMask(float[,] processedHeights)
+        {
+            TerrainData td = targetTerrain.terrainData;
+            Texture2D vizMask = new Texture2D(maskResolution, maskResolution, TextureFormat.RGB24, false);
+            Color[] pixels = new Color[maskResolution * maskResolution];
+            int heightmapRes = processedHeights.GetLength(0);
+
+            float[,] originalHeights = td.GetHeights(0, 0, heightmapRes, heightmapRes);
+
+            for (int z = 0; z < maskResolution; z++)
+            {
+                for (int x = 0; x < maskResolution; x++)
+                {
+                    int hmX = (int)(((float)x / maskResolution) * heightmapRes);
+                    int hmY = (int)(((float)z / maskResolution) * heightmapRes);
+                
+                    if (Mathf.Approximately(processedHeights[hmY, hmX], originalHeights[hmY, hmX]))
+                    {
+                        pixels[z * maskResolution + x] = Color.black; // 棚田でないエリア (R:0, G:0)
+                        continue;
+                    }
+
+                    float currentH = processedHeights[hmY, hmX];
+                    float rightH = processedHeights[hmY, Mathf.Min(hmX + 1, heightmapRes - 1)];
+                    float downH = processedHeights[Mathf.Min(hmY + 1, heightmapRes - 1), hmX];
+                    float localSlope = Mathf.Sqrt(Mathf.Pow(currentH - rightH, 2) + Mathf.Pow(currentH - downH, 2));
+
+                    if (localSlope > borderSlopeThreshold)
+                    {
+                        pixels[z * maskResolution + x] = Color.green; // 「境」 (R:0, G:1)
+                    }
+                    else
+                    {
+                        pixels[z * maskResolution + x] = Color.red; // 「平地」 (R:1, G:0)
+                    }
+                }
+            }
+
+            vizMask.SetPixels(pixels);
+            vizMask.Apply();
+            byte[] bytes = vizMask.EncodeToPNG();
+            string path = Path.Combine(Application.dataPath, outputMaskFileName);
+            File.WriteAllBytes(path, bytes);
+            Debug.Log($"棚田マスク画像を {path} に出力しました。");
+            
+            #if UNITY_EDITOR
+            AssetDatabase.Refresh();
+            #endif
+        }
+
 
         /// <summary>
         /// マップ画像を元に、各ピクセルから最も近い道路までの距離を計算する
@@ -75,39 +157,9 @@ namespace _Project.Scripts.Tanada
             roadDistanceField = new float[res, res];
             Vector2[,] roadPixels = new Vector2[res, res];
 
-            // パス1: 初期化
-            for (int z = 0; z < res; z++)
-            {
-                for (int x = 0; x < res; x++)
-                {
-                    Color pixelColor = combinedMap.GetPixel(x, z);
-                    bool isRoad = ColorDistance(pixelColor, roadColor) < colorMatchThreshold;
-                    roadDistanceField[x, z] = isRoad ? 0 : float.MaxValue;
-                    roadPixels[x, z] = isRoad ? new Vector2(x, z) : Vector2.zero;
-                }
-            }
-
-            // パス2 & 3: 高速な距離計算（Jump Floodingの簡易版）
-            for (int step = res / 2; step > 0; step /= 2)
-            {
-                for (int z = 0; z < res; z++)
-                for (int x = 0; x < res; x++)
-                for (int j = -1; j <= 1; j++)
-                for (int i = -1; i <= 1; i++)
-                {
-                    int nx = x + i * step;
-                    int nz = z + j * step;
-                    if (nx >= 0 && nx < res && nz >= 0 && nz < res)
-                    {
-                        float dist = Vector2.Distance(new Vector2(x, z), roadPixels[nx, nz]);
-                        if (dist < roadDistanceField[x, z])
-                        {
-                            roadDistanceField[x, z] = dist;
-                            roadPixels[x, z] = roadPixels[nx, nz];
-                        }
-                    }
-                }
-            }
+            // (元スクリプトと同じなので内容は省略)
+            for (int z = 0; z < res; z++) for (int x = 0; x < res; x++) { Color pixelColor = combinedMap.GetPixel(x, z); bool isRoad = ColorDistance(pixelColor, roadColor) < colorMatchThreshold; roadDistanceField[x, z] = isRoad ? 0 : float.MaxValue; roadPixels[x, z] = isRoad ? new Vector2(x, z) : Vector2.zero; }
+            for (int step = res / 2; step > 0; step /= 2) { for (int z = 0; z < res; z++) for (int x = 0; x < res; x++) for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { int nx = x + i * step; int nz = z + j * step; if (nx >= 0 && nx < res && nz >= 0 && nz < res) { float dist = Vector2.Distance(new Vector2(x, z), roadPixels[nx, nz]); if (dist < roadDistanceField[x, z]) { roadDistanceField[x, z] = dist; roadPixels[x, z] = roadPixels[nx, nz]; } } } }
             Debug.Log("道路距離マップの計算が完了しました。");
         }
 
@@ -129,10 +181,7 @@ namespace _Project.Scripts.Tanada
                 {
                     float u = (float)x / heightmapRes;
                     float v = (float)z / heightmapRes;
-                
-                    // --- 川エリアの除外はしない ---
 
-                    // --- 各スコアの計算 ---
                     int distFieldX = (int)(u * (roadDistanceField.GetLength(0) - 1));
                     int distFieldZ = (int)(v * (roadDistanceField.GetLength(1) - 1));
                     float distMeters = (roadDistanceField[distFieldX, distFieldZ] / roadDistanceField.GetLength(0)) * td.size.x;
@@ -146,6 +195,7 @@ namespace _Project.Scripts.Tanada
                 
                     float combinedScore = roadScore * altitudeScore * slopeScore;
 
+                    // スコアが閾値を超えた場所のハイトマップを段々にする
                     if (combinedScore >= placementThreshold)
                     {
                         float currentHeight = originalHeights[z, x];
@@ -154,64 +204,6 @@ namespace _Project.Scripts.Tanada
                 }
             }
             return processedHeights;
-        }
-    
-        /// <summary>
-        /// 加工後のハイトマップを分析し、「段」と「境」を色分けしたマスクを生成する
-        /// </summary>
-        private void GenerateVisualizationMask(float[,] processedHeights)
-        {
-            TerrainData td = targetTerrain.terrainData;
-            Texture2D vizMask = new Texture2D(maskResolution, maskResolution, TextureFormat.RGB24, false);
-            Color[] pixels = new Color[maskResolution * maskResolution];
-            int heightmapRes = processedHeights.GetLength(0);
-
-            // 元のハイトマップを取得（比較用）
-            float[,] originalHeights = td.GetHeights(0, 0, heightmapRes, heightmapRes);
-
-            for (int z = 0; z < maskResolution; z++)
-            {
-                for (int x = 0; x < maskResolution; x++)
-                {
-                    int hmX = (int)(((float)x / maskResolution) * heightmapRes);
-                    int hmY = (int)(((float)z / maskResolution) * heightmapRes);
-                
-                    // 加工されていないエリアは黒にする
-                    if (Mathf.Approximately(processedHeights[hmY, hmX], originalHeights[hmY, hmX]))
-                    {
-                        pixels[z * maskResolution + x] = Color.black;
-                        continue;
-                    }
-
-                    // 隣接ピクセルとの高さの差（傾斜）を計算
-                    float currentH = processedHeights[hmY, hmX];
-                    float rightH = processedHeights[hmY, Mathf.Min(hmX + 1, heightmapRes - 1)];
-                    float downH = processedHeights[Mathf.Min(hmY + 1, heightmapRes - 1), hmX];
-                
-                    // ハイトマップの傾斜を計算。値のスケールが小さいので閾値も小さくなる
-                    float localSlope = Mathf.Sqrt(Mathf.Pow(currentH - rightH, 2) + Mathf.Pow(currentH - downH, 2));
-
-                    // 傾斜に応じて色分け
-                    if (localSlope > borderSlopeThreshold)
-                    {
-                        pixels[z * maskResolution + x] = Color.gray; // 境
-                    }
-                    else
-                    {
-                        pixels[z * maskResolution + x] = Color.white; // 平地
-                    }
-                }
-            }
-
-            vizMask.SetPixels(pixels);
-            vizMask.Apply();
-            byte[] bytes = vizMask.EncodeToPNG();
-            string path = Path.Combine(Application.dataPath, outputMaskFileName);
-            File.WriteAllBytes(path, bytes);
-            Debug.Log($"棚田可視化マスク画像を {path} に出力しました。");
-#if UNITY_EDITOR
-            UnityEditor.AssetDatabase.Refresh();
-#endif
         }
     
         // スコア計算用のヘルパー関数

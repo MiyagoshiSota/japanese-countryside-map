@@ -1,4 +1,4 @@
-// URP用のシェーダー。ハイトブレンド + 川と道と棚田の描画と地形変形
+// URP用のシェーダー。ハイトブレンド + 川と道と棚田の描画（境テクスチャ対応）
 Shader "Custom/URP/HeightBlendShader_WithRiverAndRoadAndPaddy"
 {
     Properties
@@ -16,11 +16,11 @@ Shader "Custom/URP/HeightBlendShader_WithRiverAndRoadAndPaddy"
         _Height3 ("Height 3 (Rock/Snow)", Float) = 25
         _BlendAmount ("Blend Smoothness", Range(0.01, 10)) = 1.0
 
-        // ▼▼▼ 棚田のプロパティを追加 ▼▼▼
         [Header(Paddy Field Settings)]
-        _PaddyMask ("Paddy Mask", 2D) = "black" {}
-        _PaddyTexture ("Paddy Texture", 2D) = "gray" {}
-        // ▲▲▲ ▲▲▲
+        _PaddyMask ("Paddy Mask (R=Flat, G=Border)", 2D) = "black" {}
+        _PaddyTexture ("Paddy Texture (Flat)", 2D) = "gray" {}
+        // ★★★ 変更点1: 境用のテクスチャプロパティを追加 ★★★
+        _PaddyBorderTexture ("Paddy Texture (Border)", 2D) = "white" {}
 
         [Header(River Settings)]
         _RiverTexture ("River Texture", 2D) = "gray" {}
@@ -46,10 +46,10 @@ Shader "Custom/URP/HeightBlendShader_WithRiverAndRoadAndPaddy"
             TEXTURE2D(_Texture2);       SAMPLER(sampler_Texture2);
             TEXTURE2D(_Texture3);       SAMPLER(sampler_Texture3);
             TEXTURE2D(_Texture4);       SAMPLER(sampler_Texture4);
-            // ▼▼▼ 棚田のテクスチャ変数を追加 ▼▼▼
             TEXTURE2D(_PaddyMask);      SAMPLER(sampler_PaddyMask);
             TEXTURE2D(_PaddyTexture);   SAMPLER(sampler_PaddyTexture);
-            // ▲▲▲ ▲▲▲
+            // ★★★ 変更点2: 境用のテクスチャ変数を追加 ★★★
+            TEXTURE2D(_PaddyBorderTexture); SAMPLER(sampler_PaddyBorderTexture);
             TEXTURE2D(_RiverTexture);   SAMPLER(sampler_RiverTexture);
             TEXTURE2D(_RiverMask);      SAMPLER(sampler_RiverMask);
             TEXTURE2D(_RoadTexture);    SAMPLER(sampler_RoadTexture);
@@ -67,15 +67,12 @@ Shader "Custom/URP/HeightBlendShader_WithRiverAndRoadAndPaddy"
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-
                 float riverValue = SAMPLE_TEXTURE2D_LOD(_RiverMask, sampler_RiverMask, IN.uv, 0).r;
                 float riverDisplacement = riverValue * _RiverDepth;
                 IN.positionOS.y -= riverDisplacement;
-
                 float roadValue = SAMPLE_TEXTURE2D_LOD(_RoadMask, sampler_RoadMask, IN.uv, 0).r;
                 float roadDisplacement = roadValue * _RoadElevation;
                 IN.positionOS.y = lerp(IN.positionOS.y + roadDisplacement, IN.positionOS.y, riverValue);
-
                 OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
                 OUT.positionHCS = TransformWorldToHClip(OUT.positionWS);
                 OUT.uv = IN.uv;
@@ -99,16 +96,25 @@ Shader "Custom/URP/HeightBlendShader_WithRiverAndRoadAndPaddy"
                 terrainColor = lerp(terrainColor, tex3, blend2);
                 terrainColor = lerp(terrainColor, tex4, blend3);
                 
-                // ▼▼▼ 棚田の色をハイトブレンドの次に合成 ▼▼▼
-                half paddyAmount = SAMPLE_TEXTURE2D(_PaddyMask, sampler_PaddyMask, IN.uv).r;
-                half4 paddyColor = SAMPLE_TEXTURE2D(_PaddyTexture, sampler_PaddyTexture, terrainUV);
-                half4 colorWithPaddy = lerp(terrainColor, paddyColor, paddyAmount);
-                // ▲▲▲ ▲▲▲
+                // ★★★ 変更点3: 棚田の色合成ロジックを更新 ★★★
+                // マスクのRチャンネルを「平地」の量、Gチャンネルを「境」の量として読み取る
+                half4 paddyMaskColor = SAMPLE_TEXTURE2D(_PaddyMask, sampler_PaddyMask, IN.uv);
+                half flatAmount = paddyMaskColor.r;
+                half borderAmount = paddyMaskColor.g;
 
+                // 各テクスチャをサンプリング
+                half4 flatPaddyColor = SAMPLE_TEXTURE2D(_PaddyTexture, sampler_PaddyTexture, terrainUV);
+                half4 borderPaddyColor = SAMPLE_TEXTURE2D(_PaddyBorderTexture, sampler_PaddyBorderTexture, terrainUV);
+
+                // まず平地のテクスチャをベースの地形色に合成
+                half4 colorWithPaddy = lerp(terrainColor, flatPaddyColor, flatAmount);
+                // 次に境のテクスチャを合成
+                colorWithPaddy = lerp(colorWithPaddy, borderPaddyColor, borderAmount);
+                
                 // 川の色を合成
                 half riverAmount = SAMPLE_TEXTURE2D(_RiverMask, sampler_RiverMask, IN.uv).r;
                 half4 riverColor = SAMPLE_TEXTURE2D(_RiverTexture, sampler_RiverTexture, terrainUV);
-                half4 finalColor = lerp(colorWithPaddy, riverColor, riverAmount); // ★ベースを terrainColor から colorWithPaddy に変更
+                half4 finalColor = lerp(colorWithPaddy, riverColor, riverAmount);
 
                 // 道の色をさらに合成
                 half roadAmount = SAMPLE_TEXTURE2D(_RoadMask, sampler_RoadMask, IN.uv).r;
