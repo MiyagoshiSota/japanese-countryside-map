@@ -12,15 +12,14 @@ namespace _Project.Scripts.Tanada
         public Texture2D mask;
         [Tooltip("インスタンス描画する稲のメッシュ")]
         public Mesh riceMesh;
-
-        // ★★★ 変更点1：単一のマテリアルからマテリアルの配列に変更 ★★★
         [Tooltip("稲のメッシュに適用するマテリアルのリスト。メッシュのサブメッシュの順番と一致させること")]
         public Material[] riceMaterials;
 
         [Header("配置設定")]
         [Tooltip("配置を試みるインスタンスの最大数")]
         public int instanceCount = 100000;
-        [Tooltip("マスク画像の白として判定する色の閾値")]
+
+        [Tooltip("マスク画像の「赤色」として判定する色の閾値")]
         [Range(0f, 1f)]
         public float maskThreshold = 0.5f;
 
@@ -34,7 +33,7 @@ namespace _Project.Scripts.Tanada
         private const int BATCH_SIZE = 1023;
 
         [ContextMenu("1. 配置データを生成する")]
-        private void GeneratePlacementData()
+        public void GeneratePlacementData()
         {
             if (!IsValid(true)) return;
 
@@ -48,7 +47,9 @@ namespace _Project.Scripts.Tanada
             {
                 float u = Random.value;
                 float v = Random.value;
-                if (mask.GetPixelBilinear(u, v).grayscale > maskThreshold)
+                
+                Color sampledColor = mask.GetPixelBilinear(u, v);
+                if (sampledColor.r > maskThreshold)
                 {
                     float x = u * terrainData.size.x;
                     float z = v * terrainData.size.z;
@@ -80,26 +81,27 @@ namespace _Project.Scripts.Tanada
     
         private void Update()
         {
+            DrawNow();
+        }
+
+        public void DrawNow()
+        {
             if (matrices == null || matrices.Count == 0 || !IsValid(false))
             {
                 return;
             }
-
-            // ★★★ 変更点2：マテリアルごとに描画処理をループする ★★★
-            // メッシュが持つサブメッシュの数だけ描画命令を出す
+            
             for (int submeshIndex = 0; submeshIndex < riceMesh.subMeshCount; submeshIndex++)
             {
-                // このサブメッシュに対応するマテリアルが設定されていなければスキップ
                 if (submeshIndex >= riceMaterials.Length) continue;
-
-                // 全てのインスタンスをバッチに分けて、現在のサブメッシュを描画
+                
                 for (int i = 0; i < matrices.Count; i += BATCH_SIZE)
                 {
                     int count = Mathf.Min(BATCH_SIZE, matrices.Count - i);
                     Graphics.DrawMeshInstanced(
                         riceMesh, 
-                        submeshIndex, // 0番目のサブメッシュ、1番目のサブメッシュ...
-                        riceMaterials[submeshIndex], // 0番目のマテリアル、1番目のマテリアル...
+                        submeshIndex,
+                        riceMaterials[submeshIndex],
                         matrices.GetRange(i, count)
                     );
                 }

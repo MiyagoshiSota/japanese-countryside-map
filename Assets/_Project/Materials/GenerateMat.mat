@@ -93,11 +93,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RiverMask:
-        m_Texture: {fileID: 2800000, guid: 0edde5cfa510b48b7b957d8248cd0c94, type: 3}
+        m_Texture: {fileID: 2800000, guid: 06c1b166a74264845bd74b776306a373, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RiverTexture:
-        m_Texture: {fileID: 2800000, guid: 1f6d10de5f61f904caf081c16fbd29d4, type: 3}
+        m_Texture: {fileID: 2800000, guid: db6be72ac1243405187aa3e3f17a472a, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RoadMask:

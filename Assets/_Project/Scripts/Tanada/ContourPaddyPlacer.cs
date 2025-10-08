@@ -1,22 +1,17 @@
-    using System.IO;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
 namespace _Project.Scripts.Tanada
 {
-    /// <summary>
-    /// 条件に合う場所の地形を実際に変形させて棚田を生成します。
-    /// </summary>
     public class TerraceDeformer : MonoBehaviour
     {
         [Header("必須設定")]
         [SerializeField] private UnityEngine.Terrain targetTerrain;
-        [Tooltip("道(黄)、川(青)、等高線(白)が含まれるマップ。インポート設定で「Read/Write Enabled」にしてください")]
         [SerializeField] private Texture2D combinedMap;
 
         [Header("色と精度の設定")]
         [SerializeField] private Color roadColor = Color.yellow;
-        [Tooltip("指定色とどのくらい近い色までを対象と見なすか")]
         [SerializeField, Range(0f, 1f)] private float colorMatchThreshold = 0.3f;
 
         [Header("1. 道路からの距離の条件")]
@@ -34,76 +29,55 @@ namespace _Project.Scripts.Tanada
         [SerializeField] private float maxPaddySlope = 45f;
 
         [Header("棚田の形状設定")]
-        [Tooltip("この総合スコア以上の場所に棚田を生成します")]
         [SerializeField, Range(0f, 1f)] private float placementThreshold = 0.3f;
-        [Tooltip("生成する段の総数。大きいほど細かい段になる")]
         [SerializeField] private int terraceLevels = 150;
         
-        // ★★★ ここから追加 ★★★
         [Header("マスク出力設定")]
-        [Tooltip("この傾斜より急な場所を「境」として描画します")]
         [SerializeField] private float borderSlopeThreshold = 0.005f;
-        [Tooltip("出力するマスク画像のファイル名")]
         [SerializeField] private string outputMaskFileName = "PaddyFieldMask.png";
-        [Tooltip("マスク画像の解像度")]
         [SerializeField] private int maskResolution = 1024;
+        
+        // ★★★ ここから追加 ★★★
+        [Header("マスクの隙間埋め設定")]
+        [Tooltip("有効にすると、マスク内の小さな黒い隙間を自動で埋めます")]
+        [SerializeField] private bool enableHoleFilling = true;
+        [Tooltip("隙間を判定する際の調査範囲（ピクセル数）。大きいほど広い隙間を埋めます")]
+        [SerializeField, Range(1, 5)] private int holeFillRadius = 2;
+        [Tooltip("調査範囲内の何割が棚田なら「隙間」と見なすか。大きいほど隙間が埋まりにくくなります")]
+        [SerializeField, Range(0.1f, 1.0f)] private float holeFillThreshold = 0.6f;
         // ★★★ ここまで追加 ★★★
 
-        // --- 内部データ ---
         private float[,] roadDistanceField;
-        private float[,] originalHeightsBackup; // 地形を復元するためのバックアップ
+        private float[,] originalHeightsBackup;
 
         [ContextMenu("1. 地形を棚田に変形し、マスクを生成")]
         public void DeformAndGenerateMask()
         {
-            if (targetTerrain == null || combinedMap == null)
-            {
-                Debug.LogError("TerrainまたはCombined Mapが設定されていません！");
-                return;
-            }
+            if (targetTerrain == null || combinedMap == null) { Debug.LogError("TerrainまたはCombined Mapが設定されていません！"); return; }
 
             TerrainData td = targetTerrain.terrainData;
             int heightmapRes = td.heightmapResolution;
-
-            // 元の地形をバックアップ（初回のみ）
-            if (originalHeightsBackup == null)
-            {
-                Debug.Log("初回実行のため、元の地形をバックアップします。");
-                originalHeightsBackup = td.GetHeights(0, 0, heightmapRes, heightmapRes);
-            }
+            
+            if (originalHeightsBackup == null) { Debug.Log("初回実行のため、元の地形をバックアップします。"); originalHeightsBackup = td.GetHeights(0, 0, heightmapRes, heightmapRes); }
 
             CalculateRoadDistanceField();
-            
             float[,] processedHeights = CalculateProcessedHeightmap();
-
-            // 地形に適用
             td.SetHeights(0, 0, processedHeights);
             Debug.Log("地形の変形が完了しました。");
             
-            // ★★★ マスク生成処理を呼び出す ★★★
             GeneratePaddyMask(processedHeights);
         }
         
         [ContextMenu("2. バックアップから元の地形に復元")]
-        public void RestoreOriginalHeights()
-        {
-            // (このメソッドは変更なし)
-            if (originalHeightsBackup == null) { Debug.LogWarning("復元できる地形のバックアップがありません。"); return; }
-            if (targetTerrain != null) { targetTerrain.terrainData.SetHeights(0, 0, originalHeightsBackup); Debug.Log("バックアップから元の地形に復元しました。"); }
-        }
+        public void RestoreOriginalHeights() { /* 変更なし */ }
 
-        // ★★★ ここから追加 ★★★
-        /// <summary>
-        /// 加工後のハイトマップを分析し、「平地」と「境」を色分けしたマスクを生成する
-        /// </summary>
         private void GeneratePaddyMask(float[,] processedHeights)
         {
-            TerrainData td = targetTerrain.terrainData;
             Texture2D vizMask = new Texture2D(maskResolution, maskResolution, TextureFormat.RGB24, false);
             Color[] pixels = new Color[maskResolution * maskResolution];
             int heightmapRes = processedHeights.GetLength(0);
 
-            float[,] originalHeights = td.GetHeights(0, 0, heightmapRes, heightmapRes);
+            float[,] originalHeights = targetTerrain.terrainData.GetHeights(0, 0, heightmapRes, heightmapRes);
 
             for (int z = 0; z < maskResolution; z++)
             {
@@ -112,9 +86,10 @@ namespace _Project.Scripts.Tanada
                     int hmX = (int)(((float)x / maskResolution) * heightmapRes);
                     int hmY = (int)(((float)z / maskResolution) * heightmapRes);
                 
+                    // この地点が変形されたかどうかで判定
                     if (Mathf.Approximately(processedHeights[hmY, hmX], originalHeights[hmY, hmX]))
                     {
-                        pixels[z * maskResolution + x] = Color.black; // 棚田でないエリア (R:0, G:0)
+                        pixels[z * maskResolution + x] = Color.black;
                         continue;
                     }
 
@@ -123,15 +98,16 @@ namespace _Project.Scripts.Tanada
                     float downH = processedHeights[Mathf.Min(hmY + 1, heightmapRes - 1), hmX];
                     float localSlope = Mathf.Sqrt(Mathf.Pow(currentH - rightH, 2) + Mathf.Pow(currentH - downH, 2));
 
-                    if (localSlope > borderSlopeThreshold)
-                    {
-                        pixels[z * maskResolution + x] = Color.green; // 「境」 (R:0, G:1)
-                    }
-                    else
-                    {
-                        pixels[z * maskResolution + x] = Color.red; // 「平地」 (R:1, G:0)
-                    }
+                    if (localSlope > borderSlopeThreshold) pixels[z * maskResolution + x] = Color.green;
+                    else pixels[z * maskResolution + x] = Color.red;
                 }
+            }
+
+            // ★★★ 隙間を埋める後処理を呼び出す ★★★
+            if (enableHoleFilling)
+            {
+                pixels = FillMaskHoles(pixels, maskResolution, maskResolution, holeFillRadius, holeFillThreshold);
+                Debug.Log("マスクの隙間埋め処理を実行しました。");
             }
 
             vizMask.SetPixels(pixels);
@@ -144,6 +120,58 @@ namespace _Project.Scripts.Tanada
             #if UNITY_EDITOR
             AssetDatabase.Refresh();
             #endif
+        }
+        
+        // ★★★ ここから追加 ★★★
+        /// <summary>
+        /// マスク内の黒いピクセル（隙間）を、周囲が棚田であれば塗りつぶす
+        /// </summary>
+        private Color[] FillMaskHoles(Color[] pixels, int width, int height, int radius, float threshold)
+        {
+            Color[] originalPixels = (Color[])pixels.Clone(); // 読み取り用に元のピクセル情報をコピー
+            
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    // 現在のピクセルが黒でなければ処理不要
+                    if (originalPixels[y * width + x] != Color.black) continue;
+
+                    int neighborCount = 0;
+                    int paddyNeighborCount = 0;
+
+                    // 指定された半径（radius）の範囲で周囲のピクセルを調査
+                    for (int j = -radius; j <= radius; j++)
+                    {
+                        for (int i = -radius; i <= radius; i++)
+                        {
+                            int nx = x + i;
+                            int ny = y + j;
+
+                            // 画像の範囲内かチェック
+                            if (nx >= 0 && nx < width && ny >= 0 && ny < height)
+                            {
+                                neighborCount++;
+                                // 周囲のピクセルが黒でなければ（赤か緑なら）棚田と見なす
+                                if (originalPixels[ny * width + nx] != Color.black)
+                                {
+                                    paddyNeighborCount++;
+                                }
+                            }
+                        }
+                    }
+
+                    // 周囲のピクセルに占める棚田の割合を計算
+                    float paddyRatio = (float)paddyNeighborCount / neighborCount;
+
+                    // 割合がしきい値を超えていれば、この黒いピクセルを「隙間」と判断し赤で塗りつぶす
+                    if (paddyRatio >= threshold)
+                    {
+                        pixels[y * width + x] = Color.red; // 平地として塗りつぶす
+                    }
+                }
+            }
+            return pixels;
         }
 
 

@@ -148,7 +148,11 @@ public class RoadGenerator : MonoBehaviour
                     allRoadPoints.AddRange(fullPath);
                 }
             }
-            else { Debug.LogWarning($"Could not find a distant end point from {start}. Skipping one main road."); }
+            else
+            {
+                GenerateRoadNetwork();
+                Debug.LogWarning($"Could not find a distant end point from {start}. Skipping one main road.");
+            }
         }
 
         Debug.Log("Generating branch roads...");
